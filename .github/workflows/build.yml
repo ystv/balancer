@@ -41,4 +41,10 @@ jobs:
           docker image tag balancer:latest ghcr.io/ystv/balancer:latest \
           docker image tag balancer:latest ghcr.io/ystv/balancer:${{github.ref_name}}
         if: github.ref_type == 'tag'
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker push ghcr.io/ystv/balancer -a
