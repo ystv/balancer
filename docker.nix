@@ -4,7 +4,7 @@
   balancer,
 }:
 dockerTools.buildLayeredImage {
-  name = "ashleah-rest";
+  name = "balancer";
   tag = "latest";
 
   contents = [
