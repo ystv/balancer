@@ -1,0 +1,10 @@
+hostname = "tsuro"
+
+[http]
+address = "0.0.0.0"
+port = 3000
+
+[consul]
+agent_url = "http://tsuro.wahoo-monster.ts.net:8500"
+kv_prefix = "balancer"
+service_name = "balancer"

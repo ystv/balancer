@@ -1,0 +1,26 @@
+name: Check Nix Format
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v31.9.0
+      - run: nix build .#default
+      - uses: actions/upload-artifact@v6
+        with:
+          name: balancer-bin
+          path: result/bin/balancer
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: result/bin/balancer
