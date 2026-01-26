@@ -3,8 +3,11 @@ mod check;
 mod config;
 mod consul;
 mod util;
+use clap::Parser;
 use consul::{client::Consul, config::Config};
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
+
+use crate::config::BalancerConfig;
 
 #[derive(Clone)]
 struct AppState {
@@ -12,9 +15,21 @@ struct AppState {
     app_config: Arc<config::BalancerConfig>,
 }
 
+#[derive(clap::Parser)]
+struct Args {
+    #[clap(long = "config", short)]
+    config_file: Option<PathBuf>,
+}
+
 #[tokio::main]
 async fn main() {
-    let app_config = config::parse_config();
+    let args = Args::parse();
+
+    let app_config = if let Some(config_file) = args.config_file {
+        BalancerConfig::from_file(&config_file)
+    } else {
+        BalancerConfig::from_env()
+    };
 
     let consul_config = Config {
         address: app_config.consul.agent_url.clone(),

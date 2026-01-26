@@ -33,12 +33,8 @@ jobs:
           purge-last-accessed: P1DT12H
           # except any version with the key that is the same as the `primary-key`
           purge-primary-key: never
-      - run: nix build .#default
-      - uses: actions/upload-artifact@v6
-        with:
-          name: balancer-bin
-          path: result/bin/balancer
-      - uses: softprops/action-gh-release@v2
+      - run: nix build .#docker
+      - run: docker image load -i result
+      - run: docker image tag ghcr.io/ystv/balancer:${{github.ref}}-${{github.run_number}}
+      - run: docker image tag ghcr.io/ystv/balancer:latest
         if: github.ref_type == 'tag'
-        with:
-          files: result/bin/balancer
