@@ -35,10 +35,10 @@ jobs:
           purge-primary-key: never
       - run: nix build .#docker
       - run: docker image load -i result
-      - run: docker image tag balancer:latest ghcr.io/ystv/balancer:${{github.ref}}-${{github.run_number}}
+      - run: docker image tag balancer:latest ghcr.io/ystv/balancer:${{github.ref_name}}-${{github.run_number}}
         if: github.ref_type == 'branch'
       - run: \
           docker image tag balancer:latest ghcr.io/ystv/balancer:latest \
-          docker image tag balancer:latest ghcr.io/ystv/balancer:${{github.ref}}
+          docker image tag balancer:latest ghcr.io/ystv/balancer:${{github.ref_name}}
         if: github.ref_type == 'tag'
       - run: docker push ghcr.io/ystv/balancer -a
