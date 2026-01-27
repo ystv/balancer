@@ -45,16 +45,6 @@ impl Consul {
         return self.http_client.request(method, format!("{address}{path}"));
     }
 
-    pub async fn status_leader(&self) -> Result<String> {
-        let res = self
-            .make_request(Method::GET, "/v1/status/leader")
-            .send()
-            .await?
-            .json::<String>()
-            .await?;
-        Ok(res)
-    }
-
     pub async fn get_kv(&self, path: String) -> Result<Vec<KVResponse>> {
         let res = self
             .make_request(Method::GET, &*format!("/v1/kv/{path}"))
