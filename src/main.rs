@@ -41,7 +41,7 @@ async fn main() {
 
     println!("Cluster Leader: {cluster_leader}");
 
-    let _ = consul.register_service(false).await;
+    let _ = consul.register_service(false, false).await;
 
     let state = AppState {
         consul: Arc::new(consul),
@@ -54,6 +54,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Hello World!" }))
         .route("/healthz", get(|| async { "still here boss" }))
+        .route("/host", get(get_hostname))
         .route("/consul/leader", get(get_cluster_leader))
         .route("/consul/peers", get(get_peers))
         .route("/status", get(get_host_status))
@@ -63,6 +64,10 @@ async fn main() {
     // run our app with hyper, listening globally on port 3000
     let listener = util::get_http_server(state.clone()).await;
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn get_hostname(State(state): State<AppState>) -> String {
+    state.app_config.hostname.clone()
 }
 
 async fn get_cluster_leader(State(state): State<AppState>) -> Result<Json<String>, StatusCode> {

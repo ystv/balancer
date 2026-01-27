@@ -102,16 +102,22 @@ impl Consul {
         Ok(res)
     }
 
-    pub async fn register_service(&self, primary: bool) -> Result<StatusCode> {
+    pub async fn register_service(&self, active: bool, eligible: bool) -> Result<StatusCode> {
         let hostname = &self.app_config.hostname;
         let service_name = &self.app_config.consul.service_name;
 
         let mut tags: Vec<String> = Vec::from(["live".into()]);
 
-        if primary {
-            tags.push("primary".into());
+        if active {
+            tags.push("active".into());
         } else {
             tags.push("backup".into());
+        }
+
+        if eligible {
+            tags.push("eligible".into());
+        } else {
+            tags.push("ineligible".into());
         }
 
         let http_check = ServiceCheck {
@@ -125,7 +131,7 @@ impl Consul {
             id: Some(format!("{service_name}/{hostname}").into()),
             address: Some("100.113.247.76".into()),
             port: Some(3000),
-            tags: Vec::from(["live".to_string()]),
+            tags,
             checks: Vec::from([http_check]),
         };
 

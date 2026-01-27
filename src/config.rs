@@ -5,6 +5,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone)]
 pub struct BalancerConfig {
     pub hostname: String,
+    pub external_url: String,
     pub consul: ConfigConsul,
     pub http: ConfigHttp,
 }
@@ -36,6 +37,7 @@ impl BalancerConfig {
     pub fn from_env() -> Self {
         Self {
             hostname: get_env_option("BALANCER_HOSTNAME"),
+            external_url: get_env_option("BALANCER_EXTERNAL_URL"),
             consul: ConfigConsul::from_env(),
             http: ConfigHttp::from_env(),
         }

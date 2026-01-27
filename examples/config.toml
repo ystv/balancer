@@ -1,0 +1,11 @@
+hostname = "web0"
+external_url = "https://balancer.example.com"
+
+[consul]
+agent_url = "http://localhost:8500"
+kv_prefix = "balancer"
+service_name = "balancer"
+
+[http]
+address = "0.0.0.0"
+port = 3000
