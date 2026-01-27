@@ -2,6 +2,7 @@
   dockerTools,
   tini,
   balancer,
+  cacert,
 }:
 dockerTools.buildLayeredImage {
   name = "balancer";
@@ -10,6 +11,7 @@ dockerTools.buildLayeredImage {
   contents = [
     tini
     balancer
+    cacert
   ];
 
   config = {
