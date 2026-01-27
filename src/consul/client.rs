@@ -110,8 +110,11 @@ impl Consul {
             tags.push("ineligible".into());
         }
 
+        let service_address = &self.app_config.consul.service_address;
+        let service_port = &self.app_config.http.port;
+
         let http_check = ServiceCheck {
-            http: "/healthz".into(),
+            http: format!("http://{service_address}:{service_port}/healthz").into(),
             interval: "10s".into(),
             name: "Check It's Still There".into(),
         };
