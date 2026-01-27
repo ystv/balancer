@@ -5,7 +5,10 @@ external_url = "https://balancer.example.com"
 agent_url = "http://localhost:8500"
 kv_prefix = "balancer"
 service_name = "balancer"
+service_address = "web0.local"
 
 [http]
 address = "0.0.0.0"
 port = 3000
+# Address that the reverse proxy exposes balancer at locally
+reverse_proxy = "http://web0.local:7070"

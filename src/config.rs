@@ -15,12 +15,14 @@ pub struct ConfigConsul {
     pub agent_url: String,
     pub kv_prefix: String,
     pub service_name: String,
+    pub service_address: String,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct ConfigHttp {
     pub address: String,
     pub port: u16,
+    pub reverse_proxy: Option<String>,
 }
 
 impl BalancerConfig {
@@ -50,6 +52,7 @@ impl ConfigConsul {
             agent_url: get_env_option("BALANCER_CONSUL_AGENT_URL"),
             kv_prefix: get_env_option("BALANCER_CONSUL_KV_PREFIX"),
             service_name: get_env_option("BALANCER_CONSUL_SERVICE_NAME"),
+            service_address: get_env_option("BALANCER_CONSUL_SERVICE_ADDRESS"),
         }
     }
 }
@@ -60,6 +63,7 @@ impl ConfigHttp {
             address: get_env_option("BALANCER_HTTP_ADDRESS"),
             port: str::parse::<u16>(&get_env_option("BALANCER_HTTP_PORT"))
                 .expect("BALANCER_HTTP_PORT not a number"),
+            reverse_proxy: Some(std::env::var("BALANCER_HTTP_REVERSE_PROXY").unwrap()),
         }
     }
 }

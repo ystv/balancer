@@ -7,7 +7,7 @@ use clap::Parser;
 use consul::{client::Consul, config::Config};
 use std::{path::PathBuf, sync::Arc};
 
-use crate::config::BalancerConfig;
+use crate::{check::is_eligible, config::BalancerConfig, util::json_status_response};
 
 #[derive(Clone)]
 struct AppState {
@@ -55,9 +55,7 @@ async fn main() {
         .route("/", get(|| async { "Hello World!" }))
         .route("/healthz", get(|| async { "still here boss" }))
         .route("/host", get(get_hostname))
-        .route("/consul/leader", get(get_cluster_leader))
-        .route("/consul/peers", get(get_peers))
-        .route("/status", get(get_host_status))
+        .route("/status", get(get_eligibility))
         .with_state(state.clone());
 
     println!("> Starting HTTP server on port 3000");
@@ -70,29 +68,16 @@ async fn get_hostname(State(state): State<AppState>) -> String {
     state.app_config.hostname.clone()
 }
 
-async fn get_cluster_leader(State(state): State<AppState>) -> Result<Json<String>, StatusCode> {
-    match state.consul.status_leader().await {
-        Ok(leader) => Ok(Json(leader)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
+async fn get_eligibility(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
+    let client = reqwest::Client::new();
 
-async fn get_peers(State(state): State<AppState>) -> Result<Json<Vec<String>>, StatusCode> {
-    match state.consul.status_peers().await {
-        Ok(peers) => Ok(Json(peers)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
+    let is_eligible = match is_eligible(&state, &client).await {
+        Ok(eligibility) => eligibility,
+        Err(_) => false,
+    };
 
-async fn get_host_status(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<consul::client::KVResponse>>, StatusCode> {
-    match state
-        .consul
-        .get_kv("jenkins/NixOS/hosts/temjin/status".into())
-        .await
-    {
-        Ok(kv_res) => Ok(Json(kv_res)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    match is_eligible {
+        true => json_status_response(StatusCode::OK),
+        false => json_status_response(StatusCode::IM_A_TEAPOT),
     }
 }

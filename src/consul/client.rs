@@ -55,16 +55,6 @@ impl Consul {
         Ok(res)
     }
 
-    pub async fn status_peers(&self) -> Result<Vec<String>> {
-        let res = self
-            .make_request(Method::GET, "/v1/status/peers")
-            .send()
-            .await?
-            .json::<Vec<String>>()
-            .await?;
-        Ok(res)
-    }
-
     pub async fn get_kv(&self, path: String) -> Result<Vec<KVResponse>> {
         let res = self
             .make_request(Method::GET, &*format!("/v1/kv/{path}"))
@@ -121,7 +111,7 @@ impl Consul {
         }
 
         let http_check = ServiceCheck {
-            http: "http://100.113.247.76:3000/healthz".into(),
+            http: "/healthz".into(),
             interval: "10s".into(),
             name: "Check It's Still There".into(),
         };
@@ -129,8 +119,8 @@ impl Consul {
         let service = AgentServiceRegister {
             name: service_name.into(),
             id: Some(format!("{service_name}/{hostname}").into()),
-            address: Some("100.113.247.76".into()),
-            port: Some(3000),
+            address: Some((&self.app_config.consul.service_address).into()),
+            port: Some(self.app_config.http.port),
             tags,
             checks: Vec::from([http_check]),
         };

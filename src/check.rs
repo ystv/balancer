@@ -1,18 +1,36 @@
+use reqwest::{Client, Result};
 use tokio::time::{interval, Duration};
 
+use crate::consul::client::ServiceResponse;
+
 #[derive(PartialEq)]
-enum OverrideStatus {
+enum EligibleStatus {
     Eligible,
     Ineligible,
     Unknown,
 }
 
-impl std::fmt::Display for OverrideStatus {
+impl From<EligibleStatus> for bool {
+    fn from(value: EligibleStatus) -> bool {
+        matches!(value, EligibleStatus::Eligible)
+    }
+}
+
+impl From<bool> for EligibleStatus {
+    fn from(value: bool) -> Self {
+        match value {
+            true => EligibleStatus::Eligible,
+            false => EligibleStatus::Ineligible,
+        }
+    }
+}
+
+impl std::fmt::Display for EligibleStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            OverrideStatus::Eligible => write!(f, "Eligible"),
-            OverrideStatus::Ineligible => write!(f, "Ineligible"),
-            OverrideStatus::Unknown => write!(f, "Unknown"),
+            EligibleStatus::Eligible => write!(f, "Eligible"),
+            EligibleStatus::Ineligible => write!(f, "Ineligible"),
+            EligibleStatus::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -31,25 +49,43 @@ pub async fn start_status_checks(state: super::AppState) {
 }
 
 pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
-    let is_eligible = is_eligible(&state).await;
-    let is_active_service = is_active_service(&state).await;
-    let is_active_host = is_active_host(&state, client).await;
+    let service_response = get_service_tags(&state).await;
 
-    if !(is_active_service && is_active_host) {
-        println!("Status doesn't match is_active: {is_active_host} but is_active_service: {is_active_service}");
+    let is_active_service = is_active_service(&service_response).await;
+    let is_active_host = is_active_host(&state, client).await;
+    let is_eligible_service = is_eligible_service(&service_response).await;
+    let is_eligible_host = is_eligible(&state, client).await.unwrap_or(false);
+
+    if (is_active_service != is_active_host) || (is_eligible_service != is_eligible_host) {
+        println!("Status doesn't match: is_active: {is_active_host} but is_active_service: {is_active_service}");
+        println!("  - is_active:   {is_active_host} but is_active_service:   {is_active_service}");
+        println!(
+            "  - is_eligible: {is_eligible_host} but is_eligible_service: {is_eligible_service}"
+        );
 
         println!("Changing service state");
         state
             .consul
-            .register_service(!is_active_service && is_active_host, is_eligible)
+            .register_service(is_active_host, is_eligible_host)
             .await
             .expect("failed to change service state");
     }
 }
 
-pub async fn is_active_service(state: &super::AppState) -> bool {
-    let service_tags = state.consul.get_self().await.unwrap();
-    service_tags.tags.contains(&"active".to_string())
+pub async fn get_service_tags(state: &super::AppState) -> ServiceResponse {
+    state
+        .consul
+        .get_self()
+        .await
+        .unwrap_or(ServiceResponse { tags: Vec::new() })
+}
+
+pub async fn is_active_service(service_response: &ServiceResponse) -> bool {
+    service_response.tags.contains(&"active".to_string())
+}
+
+pub async fn is_eligible_service(service_response: &ServiceResponse) -> bool {
+    service_response.tags.contains(&"eligible".to_string())
 }
 
 pub async fn is_active_host(state: &super::AppState, client: &reqwest::Client) -> bool {
@@ -70,30 +106,42 @@ pub async fn is_active_host(state: &super::AppState, client: &reqwest::Client) -
     return external_host == hostname;
 }
 
-pub async fn is_eligible(state: &super::AppState) -> bool {
+pub async fn is_eligible(state: &super::AppState, client: &Client) -> Result<bool> {
+    let kv_override_status: EligibleStatus = get_override_status(state)
+        .await
+        .unwrap_or(EligibleStatus::Ineligible);
+
+    let reverse_proxy_status: EligibleStatus = get_reverse_proxy_status(state, client)
+        .await
+        .unwrap_or(EligibleStatus::Ineligible);
+
+    Ok(kv_override_status.into() && reverse_proxy_status.into())
+}
+
+async fn get_override_status(state: &super::AppState) -> Result<EligibleStatus> {
     let hostname = &state.app_config.hostname;
     let kv_prefix = &state.app_config.consul.kv_prefix;
 
-    let mut kv_override: OverrideStatus = match state
+    let mut kv_override: EligibleStatus = match state
         .consul
         .get_kv(format!("{kv_prefix}/{hostname}/eligible").into())
         .await
     {
         Ok(v) => (|| {
             if v.is_empty() {
-                return OverrideStatus::Unknown;
+                return EligibleStatus::Unknown;
             } else {
                 let status = v.first().unwrap();
                 if status.value == "FALSE".to_string() {
-                    return OverrideStatus::Ineligible;
+                    return EligibleStatus::Ineligible;
                 }
             }
-            return OverrideStatus::Eligible;
+            return EligibleStatus::Eligible;
         })(),
-        Err(_) => OverrideStatus::Unknown,
+        Err(_) => EligibleStatus::Unknown,
     };
 
-    if kv_override == OverrideStatus::Unknown {
+    if kv_override == EligibleStatus::Unknown {
         println!("No KV value found for override, setting...");
         let kv_override_set = state
             .consul
@@ -102,15 +150,38 @@ pub async fn is_eligible(state: &super::AppState) -> bool {
                 "TRUE".to_string(),
             )
             .await
-            .unwrap();
+            .unwrap_or(false);
 
         if kv_override_set {
             println!("Set KV value for override successfully!");
-            kv_override = OverrideStatus::Eligible
+            kv_override = EligibleStatus::Eligible
         } else {
             println!("Failed to set eligibility KV in consul")
         }
     }
 
-    return kv_override == OverrideStatus::Eligible;
+    Ok(kv_override)
+}
+
+async fn get_reverse_proxy_status(
+    state: &super::AppState,
+    client: &Client,
+) -> Result<EligibleStatus> {
+    let hostname = &state.app_config.hostname;
+    let rp_addr = &state.app_config.http.reverse_proxy;
+
+    // Return OK if addr not set
+    let rp_addr = match rp_addr {
+        Some(addr) => Some(addr).unwrap(),
+        None => return Ok(EligibleStatus::Eligible),
+    };
+
+    let rp_status_res = match client.get(format!("{rp_addr}/host")).send().await {
+        Result::Ok(r) => Some(r).unwrap(),
+        _ => return Ok(EligibleStatus::Unknown),
+    };
+
+    let rp_status_host = rp_status_res.text().await.unwrap_or("".into());
+
+    Ok((&rp_status_host == hostname).into())
 }
