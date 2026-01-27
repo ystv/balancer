@@ -61,7 +61,7 @@ impl ConfigHttp {
     pub fn from_env() -> Self {
         Self {
             address: get_env_option("BALANCER_HTTP_ADDRESS"),
-            port: (get_env_option("BALANCER_HTTP_PORT").parse::<u16>())
+            port: (get_env_option("BALANCER_HTTP_PORT").trim().parse::<u16>())
                 .expect("BALANCER_HTTP_PORT not a number"),
             reverse_proxy: Some(std::env::var("BALANCER_HTTP_REVERSE_PROXY").unwrap()),
         }
