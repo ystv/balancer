@@ -39,10 +39,6 @@ async fn main() {
 
     let consul = Consul::new(consul_config, app_config.clone());
 
-    let cluster_leader = consul.status_leader().await.unwrap();
-
-    println!("Cluster Leader: {cluster_leader}");
-
     let _ = consul.register_service(false, false).await;
 
     let state = AppState {

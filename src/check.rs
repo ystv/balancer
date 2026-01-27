@@ -64,11 +64,14 @@ pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
         );
 
         println!("Changing service state");
-        state
+        match state
             .consul
             .register_service(is_active_host, is_eligible_host)
             .await
-            .expect("failed to change service state");
+        {
+            Result::Ok(r) => println!("Success!"),
+            _ => println!("Failed"),
+        }
     }
 }
 
@@ -92,16 +95,14 @@ pub async fn is_active_host(state: &super::AppState, client: &reqwest::Client) -
     let external_url = &state.app_config.external_url;
     let hostname = &state.app_config.hostname;
 
-    let external_host_res = client
-        .get(format!("{external_url}/host"))
-        .send()
-        .await
-        .expect("failed to query external_url")
-        .text()
-        .await
-        .expect("failed to get host from external_url");
+    let external_host_res = match client.get(format!("{external_url}/host")).send().await {
+        Result::Ok(r) => Some(r).unwrap(),
+        _ => return false,
+    };
 
-    let external_host = external_host_res.trim();
+    let external_host_hostname = external_host_res.text().await.unwrap_or("".into());
+
+    let external_host = external_host_hostname.trim();
 
     return external_host == hostname;
 }
