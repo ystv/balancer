@@ -69,7 +69,7 @@ pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
             .register_service(is_active_host, is_eligible_host)
             .await
         {
-            Result::Ok(r) => println!("Success!"),
+            Result::Ok(_) => println!("Success!"),
             _ => println!("Failed"),
         }
     }
