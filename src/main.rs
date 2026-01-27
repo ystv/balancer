@@ -23,6 +23,8 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
+
     let args = Args::parse();
 
     let app_config = if let Some(config_file) = args.config_file {

@@ -10,6 +10,7 @@ license = "MIT"
 axum = { version = "0.8.8", features = ["macros"] }
 base64 = "0.22.1"
 clap = { version = "4.5.54", features = ["derive"] }
+dotenvy = "0.15.7"
 hyper = "1.8.1"
 log = "0.4.29"
 reqwest = { version = "0.13.1", features = ["json"] }

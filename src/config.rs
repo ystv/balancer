@@ -69,5 +69,5 @@ impl ConfigHttp {
 }
 
 pub fn get_env_option(key: &'static str) -> String {
-    std::env::var("BALANCER_HTTP_ADDRESS").expect(&format!("env {key} not set"))
+    std::env::var(key).expect(&format!("env {key} not set"))
 }
