@@ -42,13 +42,13 @@ pub async fn start_status_checks(state: super::AppState) {
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                check_status(state.clone(), &http_client).await;
+                check_status(&state, &http_client).await;
             }
         }
     }
 }
 
-pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
+pub async fn check_status(state: &super::AppState, client: &reqwest::Client) {
     let service_response = get_service_tags(&state).await;
 
     let is_active_service = is_active_service(&service_response).await;
@@ -66,7 +66,7 @@ pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
         println!("Changing service state");
         match state
             .consul
-            .register_service(is_active_host, is_eligible_host)
+            .register_service(state, is_active_host, is_eligible_host)
             .await
         {
             Result::Ok(_) => println!("Success!"),
@@ -78,7 +78,7 @@ pub async fn check_status(state: super::AppState, client: &reqwest::Client) {
 pub async fn get_service_tags(state: &super::AppState) -> ServiceResponse {
     state
         .consul
-        .get_self()
+        .get_self(state)
         .await
         .unwrap_or(ServiceResponse { tags: Vec::new() })
 }

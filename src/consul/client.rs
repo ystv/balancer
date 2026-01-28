@@ -2,14 +2,13 @@ use hyper::http::StatusCode;
 use reqwest::{Method, RequestBuilder, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::config::BalancerConfig;
+use crate::AppState;
 
 use super::config::Config;
 use super::service::{AgentServiceRegister, ServiceCheck};
 
 pub struct Consul {
     config: Config,
-    app_config: BalancerConfig,
     http_client: reqwest::Client,
 }
 
@@ -31,11 +30,10 @@ pub struct ServiceResponse {
 }
 
 impl Consul {
-    pub fn new(config: Config, app_config: BalancerConfig) -> Self {
+    pub fn new(config: Config) -> Self {
         let http_client = reqwest::Client::new();
         Self {
             config,
-            app_config,
             http_client,
         }
     }
@@ -66,9 +64,9 @@ impl Consul {
         Ok(res)
     }
 
-    pub async fn get_self(&self) -> Result<ServiceResponse> {
-        let hostname = &self.app_config.hostname;
-        let service_name = &self.app_config.consul.service_name;
+    pub async fn get_self(&self, state: &AppState) -> Result<ServiceResponse> {
+        let hostname = &state.app_config.hostname;
+        let service_name = &state.app_config.consul.service_name;
 
         let res = self
             .make_request(
@@ -82,9 +80,14 @@ impl Consul {
         Ok(res)
     }
 
-    pub async fn register_service(&self, active: bool, eligible: bool) -> Result<StatusCode> {
-        let hostname = &self.app_config.hostname;
-        let service_name = &self.app_config.consul.service_name;
+    pub async fn register_service(
+        &self,
+        state: &AppState,
+        active: bool,
+        eligible: bool,
+    ) -> Result<StatusCode> {
+        let hostname = &state.app_config.hostname;
+        let service_name = &state.app_config.consul.service_name;
 
         let mut tags: Vec<String> = Vec::from(["live".into()]);
 
@@ -100,8 +103,8 @@ impl Consul {
             tags.push("ineligible".into());
         }
 
-        let service_address = &self.app_config.consul.service_address;
-        let service_port = &self.app_config.http.port;
+        let service_address = &state.app_config.consul.service_address;
+        let service_port = &state.app_config.http.port;
 
         let http_check = ServiceCheck {
             http: format!("http://{service_address}:{service_port}/healthz").into(),
@@ -112,8 +115,8 @@ impl Consul {
         let service = AgentServiceRegister {
             name: service_name.into(),
             id: Some(format!("{service_name}/{hostname}").into()),
-            address: Some((&self.app_config.consul.service_address).into()),
-            port: Some(self.app_config.http.port),
+            address: Some((&state.app_config.consul.service_address).into()),
+            port: Some(state.app_config.http.port),
             tags,
             checks: Vec::from([http_check]),
         };

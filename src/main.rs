@@ -37,14 +37,14 @@ async fn main() {
         address: app_config.consul.agent_url.clone(),
     };
 
-    let consul = Consul::new(consul_config, app_config.clone());
-
-    let _ = consul.register_service(false, false).await;
+    let consul = Consul::new(consul_config);
 
     let state = AppState {
         consul: Arc::new(consul),
         app_config: Arc::new(app_config),
     };
+
+    let _ = state.consul.register_service(&state, false, false).await;
 
     tokio::spawn(check::start_status_checks(state.clone()));
 
@@ -56,9 +56,11 @@ async fn main() {
         .route("/status", get(get_eligibility))
         .with_state(state.clone());
 
-    println!("> Starting HTTP server on port 3000");
+    let port = &state.app_config.http.port;
+
+    println!("> Starting HTTP server on port {port}");
     // run our app with hyper, listening globally on port 3000
-    let listener = util::get_http_server(state.clone()).await;
+    let listener = util::get_http_server(&state).await;
     axum::serve(listener, app).await.unwrap();
 }
 
