@@ -23,6 +23,4 @@ RUN apt-get update \
 
 COPY --from=build /bin/balancer /bin/
 
-EXPOSE 8000
-
 ENTRYPOINT [ "/bin/balancer" ]
