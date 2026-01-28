@@ -15,7 +15,7 @@ dockerTools.buildLayeredImage {
   ];
 
   config = {
-    Cmd = [
+    Entrypoint = [
       "/bin/tini"
       "/bin/balancer"
     ];
