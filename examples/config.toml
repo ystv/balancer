@@ -1,14 +1,24 @@
+# The name of the node
 hostname = "web0"
+# The base url that balancer is deployed to externally
 external_url = "https://balancer.example.com"
 
+# Configuration for interactions with Consul
 [consul]
+# The URL of the agent to register with, typically localhost or the node's LAN IP if running in docker
 agent_url = "http://localhost:8500"
+# The prefix to use in Consul's KV store
 kv_prefix = "balancer"
+# The name of the service to register with Consul
 service_name = "balancer"
+# The address of the service on the node (excluding the port)
 service_address = "web0.local"
 
+# HTTP Configuration
 [http]
+# The address to bind to
 address = "0.0.0.0"
+# The port to bind to
 port = 3000
 # Address that the reverse proxy exposes balancer at locally
 reverse_proxy = "http://web0.local:7070"
