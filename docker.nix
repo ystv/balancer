@@ -18,6 +18,7 @@ dockerTools.buildLayeredImage {
     Entrypoint = [
       "/bin/tini"
       "/bin/balancer"
+      "--"
     ];
     WorkingDir = "/";
   };
